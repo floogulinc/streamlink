@@ -20,15 +20,22 @@ jobs:
       # please remember to change the `codecov.notify.after_n_builds` value in .codecov.yml
       # when changing the build matrix and changing the number of test runners
       matrix:
-        os: [ubuntu-20.04, windows-latest]
-        python: [3.6, 3.7, 3.8, 3.9]
-        include:
-          - python: 3.10-dev
-            os: ubuntu-20.04
-            continue: true
-          - python: 3.10-dev
-            os: windows-latest
-            continue: true
+        os:
+          - ubuntu-20.04
+          - windows-latest
+        python:
+          - "3.6"
+          - "3.7"
+          - "3.8"
+          - "3.9"
+          - "3.10"
+        # include:
+        #   - python: "3.11-dev"
+        #     os: ubuntu-20.04
+        #     continue: true
+        #   - python: "3.11-dev"
+        #     os: windows-latest
+        #     continue: true
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
@@ -47,16 +54,21 @@ jobs:
       - name: Lint (line terminators)
         if: startsWith(matrix.os, 'ubuntu')
         run: "! grep 'with CRLF line terminators' <(git ls-files | file -nNf-)"
+      - name: Lint (unicode bidirectional control characters)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: "! git grep -EIn $'[\\u2066\\u2067\\u2068\\u2069\\u202A\\u202B\\u202C\\u202D\\u202E]'"
       - name: Lint (file permissions)
         if: startsWith(matrix.os, 'ubuntu')
         run: "! grep -Ev '^644' <(git ls-files src/ tests/ | xargs stat '--format=%a %n')"
       - name: Test
         continue-on-error: ${{ matrix.continue || false }}
         run: pytest -r a --cov --cov-branch --cov-report=xml --durations 10
+      - name: Build shell completions
+        run: bash ./script/build-shell-completions.sh
       - name: Upload coverage data
         if: github.event_name != 'schedule'
         continue-on-error: ${{ matrix.continue || false }}
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v2
         with:
           name: os:${{ matrix.os }} py:${{ matrix.python }}
 
@@ -78,7 +90,7 @@ jobs:
           ./script/install-dependencies.sh
           python -m pip install -r docs-requirements.txt
       - name: Build
-        run: make --directory=docs html
+        run: make --directory=docs html man
 
   windows-installer:
     name: Windows installer
@@ -95,7 +107,7 @@ jobs:
       - name: Install dependencies
         run: |
           ./script/install-dependencies.sh
-          python -m pip install pynsist
+          python -m pip install wheel pynsist==2.7 distlib==0.3.3
           sudo apt update
           sudo apt install -y nsis imagemagick inkscape
       - name: Installer file name
@@ -158,6 +170,8 @@ jobs:
           ./script/install-dependencies.sh
           python -m pip install -r docs-requirements.txt
           python -m pip install --upgrade wheel twine
+      - name: Build shell completions
+        run: ./script/build-shell-completions.sh
       - name: Build man page
         run: make --directory=docs man
       - name: Installer file name

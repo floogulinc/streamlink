@@ -4,14 +4,15 @@ from urllib.parse import parse_qsl, urlparse
 
 from streamlink.plugin import Plugin, PluginArgument, PluginArguments, pluginmatcher
 from streamlink.plugin.api import validate
-from streamlink.stream import DASHStream, HTTPStream
+from streamlink.stream.dash import DASHStream
 from streamlink.stream.ffmpegmux import MuxedStream
+from streamlink.stream.http import HTTPStream
 
 log = logging.getLogger(__name__)
 
 
 @pluginmatcher(re.compile(
-    r'https?://(?:www\.)?(?:svtplay|oppetarkiv)\.se(/(kanaler/)?)'
+    r'https?://(?:www\.)?(?:svtplay|oppetarkiv)\.se(/(kanaler/)?.*)'
 ))
 class SVTPlay(Plugin):
     api_url = 'https://api.svt.se/videoplayer-api/video/{0}'

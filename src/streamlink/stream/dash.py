@@ -14,8 +14,8 @@ from streamlink.stream.ffmpegmux import FFMPEGMuxer
 from streamlink.stream.http import normalize_key, valid_args
 from streamlink.stream.segmented import SegmentedStreamReader, SegmentedStreamWorker, SegmentedStreamWriter
 from streamlink.stream.stream import Stream
-from streamlink.utils import parse_xml
 from streamlink.utils.l10n import Language
+from streamlink.utils.parse import parse_xml
 
 log = logging.getLogger(__name__)
 
@@ -249,6 +249,12 @@ class DASHStream(Stream):
         ret_new = {}
         for q in dict_value_list:
             items = dict_value_list[q]
+
+            try:
+                items = sorted(items, key=lambda k: k.video_representation.bandwidth, reverse=True)
+            except AttributeError:
+                pass
+
             for n in range(len(items)):
                 if n == 0:
                     ret_new[q] = items[n]

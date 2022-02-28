@@ -150,8 +150,8 @@ if a package is not available for your distro or platform, or if it's out of dat
 .. _NetBSD (pkgsrc): https://pkgsrc.se/multimedia/streamlink
 .. _NixOS: https://github.com/NixOS/nixpkgs/tree/master/pkgs/applications/video/streamlink
 .. _OpenBSD: https://openports.se/multimedia/streamlink
-.. _Solus: https://dev.solus-project.com/source/streamlink/
-.. _Ubuntu: http://ppa.launchpad.net/nilarimogard/webupd8/ubuntu/pool/main/s/streamlink/
+.. _Solus: https://dev.getsol.us/source/streamlink/
+.. _Ubuntu: https://launchpad.net/~nilarimogard/+archive/ubuntu/webupd8/+packages?field.name_filter=streamlink&field.status_filter=published&field.series_filter=
 .. _Void: https://github.com/void-linux/void-packages/tree/master/srcpkgs/streamlink
 
 .. _Installing AUR packages: https://wiki.archlinux.org/index.php/Arch_User_Repository#Installing_packages
@@ -176,9 +176,9 @@ Gentoo                               soredake <fdsfgs at krutt.org>
 NetBSD                               Maya Rashish <maya at netbsd.org>
 NixOS                                Tuomas Tynkkynen <tuomas.tynkkynen at iki.fi>
 OpenBSD                              Brian Callahan <bcallah at openbsd.org>
-Solus                                Bryan T. Meyers <bmeyers at datadrake.com>
+Solus                                Joey Riches <josephriches at gmail.com>
 Ubuntu                               Alin Andrei <andrew at webupd8.org>
-Void                                 wkuipers <wietse at kuiprs.nl>
+Void                                 Michal Vasilek <michal at vasilek.cz>
 Windows binaries                     beardypig <beardypig at protonmail.com>
 Windows port. version                beardypig <beardypig at protonmail.com>
 ==================================== ===========================================
@@ -280,51 +280,39 @@ To install Streamlink from source you will need these dependencies.
 Name                                 Notes
 ==================================== ===========================================
 `Python`_                            At least version **3.6**.
-`python-setuptools`_
+`python-setuptools`_                 At least version **42.0.0**.
 
 **Automatically installed by the setup script**
 --------------------------------------------------------------------------------
-`python-requests`_                   At least version **2.26.0**
-`pycryptodome`_                      Required to play some encrypted streams
-`iso-639`_                           Used for localization settings, provides language information
-`iso3166`_                           Used for localization settings, provides country information
-`isodate`_                           Used for MPEG-DASH streams
+`isodate`_                           Used for parsing ISO8601 strings
 `lxml`_                              Used for processing HTML and XML data
+`pycountry`_                         Used for localization settings, provides country and language data
+`pycryptodome`_                      Used for decrypting encrypted streams
 `PySocks`_                           Used for SOCKS Proxies
-`websocket-client`_                  At least version **0.58.0**. (used for some plugins)
+`requests`_                          Used for making any kind of HTTP/HTTPS request
+`websocket-client`_                  Used for making websocket connections
 
 **Optional**
 --------------------------------------------------------------------------------
-`RTMPDump`_                          Required to play RTMP streams.
-`ffmpeg`_                            Required to play streams that are made up of separate
-                                     audio and video streams, eg. YouTube 1080p+
+`ffmpeg`_                            Required for `muxing`_ multiple video/audio/subtitle streams into a single output stream.
+
+                                     - DASH streams with video and audio content always have to get remuxed.
+                                     - HLS streams optionally need to get remuxed depending on the stream selection.
 ==================================== ===========================================
 
-Using pycrypto and pycountry
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-With these two environment variables it is possible to use `pycrypto`_ instead of
-`pycryptodome`_ and `pycountry`_ instead of `iso-639`_ and `iso3166`_.
-
-.. code-block:: console
-
-    $ export STREAMLINK_USE_PYCRYPTO="true"
-    $ export STREAMLINK_USE_PYCOUNTRY="true"
-
 .. _Python: https://www.python.org/
-.. _python-setuptools: https://pypi.org/project/setuptools/
-.. _python-requests: https://docs.python-requests.org/en/master/
-.. _RTMPDump: https://rtmpdump.mplayerhq.hu/
-.. _pycountry: https://pypi.org/project/pycountry/
-.. _pycrypto: https://www.dlitz.net/software/pycrypto/
-.. _pycryptodome: https://pycryptodome.readthedocs.io/en/latest/
-.. _ffmpeg: https://www.ffmpeg.org/
-.. _iso-639: https://pypi.org/project/iso-639/
-.. _iso3166: https://pypi.org/project/iso3166/
+.. _python-setuptools: https://setuptools.pypa.io/en/latest/
+
 .. _isodate: https://pypi.org/project/isodate/
 .. _lxml: https://lxml.de/
+.. _pycountry: https://pypi.org/project/pycountry/
+.. _pycryptodome: https://pycryptodome.readthedocs.io/en/latest/
 .. _PySocks: https://github.com/Anorov/PySocks
+.. _requests: https://docs.python-requests.org/en/master/
 .. _websocket-client: https://pypi.org/project/websocket-client/
+
+.. _ffmpeg: https://www.ffmpeg.org/
+.. _muxing: https://en.wikipedia.org/wiki/Multiplexing#Video_processing
 
 
 Windows binaries
@@ -362,9 +350,7 @@ Release                              Notes
 
 These installers contain:
 
-- A compiled version of Streamlink that **does not require an existing Python
-  installation**
-- `RTMPDump`_ for viewing RTMP streams
+- A compiled version of Streamlink that **does not require an existing Python installation**
 - `ffmpeg`_ for muxing streams
 
 and perform the following tasks:

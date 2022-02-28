@@ -12,6 +12,7 @@ err() {
 
 
 declare -A DEPS=(
+    [pip]=pip
     [makensis]=NSIS
     [pynsist]=pynsist
     [convert]=Imagemagick
@@ -33,8 +34,9 @@ cd "${ROOT}"
 STREAMLINK_VERSION=$(python setup.py --version)
 STREAMLINK_VERSION_PLAIN="${STREAMLINK_VERSION%%+*}"
 STREAMLINK_INSTALLER="${1:-"streamlink-${STREAMLINK_VERSION/\+/_}"}"
-STREAMLINK_PYTHON_VERSION=3.9.7
+STREAMLINK_PYTHON_VERSION=3.9.10
 STREAMLINK_ASSETS_FILE="${ROOT}/script/makeinstaller-assets.json"
+STREAMLINK_REQUIREMENTS_FILE="${ROOT}/script/makeinstaller-requirements.json"
 
 CI_BUILD_NUMBER=${GITHUB_RUN_ID:-0}
 STREAMLINK_VI_VERSION="${STREAMLINK_VERSION_PLAIN}.${CI_BUILD_NUMBER}"
@@ -48,6 +50,7 @@ cache_dir="${build_dir}/cache"
 nsis_dir="${build_dir}/nsis"
 files_dir="${build_dir}/files"
 icons_dir="${files_dir}/icons"
+wheels_dir=$(mktemp -d) && trap "rm -rf '${wheels_dir}'" RETURN || exit 255
 
 removed_plugins_file="${ROOT}/src/streamlink/plugins/.removed"
 
@@ -73,6 +76,31 @@ done
 convert "${icons_dir}"/icon-{16,32,48,256}.png "${icons_dir}/icon.ico" 2>/dev/null
 
 
+log "Downloading dependency wheels"
+pip download \
+    --disable-pip-version-check \
+    --progress-bar off \
+    --no-cache-dir \
+    --require-hashes \
+    --only-binary :all: \
+    --platform win32 \
+    --python-version "${STREAMLINK_PYTHON_VERSION}" \
+    --implementation cp \
+    --dest "${wheels_dir}" \
+    --requirement /dev/stdin \
+    < <(jq -r '.wheels | to_entries[] | "\(.key)==\(.value)"' "${STREAMLINK_REQUIREMENTS_FILE}")
+
+log "Locally building missing dependency wheels"
+pip wheel \
+    --disable-pip-version-check \
+    --progress-bar off \
+    --no-cache-dir \
+    --require-hashes \
+    --no-binary :all: \
+    --wheel-dir "${wheels_dir}" \
+    --requirement /dev/stdin \
+    < <(jq -r '.build_wheels | to_entries[] | "\(.key)==\(.value)"' "${STREAMLINK_REQUIREMENTS_FILE}")
+
 log "Configuring installer"
 
 cat > "${build_dir}/streamlink.cfg" <<EOF
@@ -89,22 +117,9 @@ format=bundled
 
 [Include]
 packages=pkg_resources
-         iso639
-pypi_wheels=certifi==2021.5.30
-            charset-normalizer==2.0.4
-            idna==3.2
-            iso3166==1.0.1
-            isodate==0.6.0
-            lxml==4.6.3
-            pycryptodome==3.10.1
-            PySocks==1.7.1
-            requests==2.26.0
-            six==1.16.0
-            urllib3==1.26.6
-            websocket-client==1.2.1
+local_wheels=${wheels_dir}/*.whl
 
-files=${ROOT}/win32/THIRD-PARTY.txt > \$INSTDIR
-      ${ROOT}/build/lib/streamlink > \$INSTDIR\pkgs
+files=${ROOT}/build/lib/streamlink > \$INSTDIR\pkgs
       ${ROOT}/build/lib/streamlink_cli > \$INSTDIR\pkgs
 
 [Command streamlink]
@@ -181,15 +196,6 @@ cat > "${build_dir}/installer_tmpl.nsi" <<EOF
 [% block sections %]
 [[ super()  ]]
 SubSection /e "Bundled tools" bundled
-    Section "rtmpdump" rtmpdump
-        SetOutPath "\$INSTDIR\rtmpdump"
-        File /r "${files_dir}\rtmpdump\*.*"
-        SetShellVarContext current
-        \${ConfigWrite} "\$APPDATA\streamlink\config" "rtmpdump=" "\$INSTDIR\rtmpdump\rtmpdump.exe" \$R0
-        SetShellVarContext all
-        SetOutPath -
-    SectionEnd
-
     Section "FFMPEG" ffmpeg
         SetOutPath "\$INSTDIR\ffmpeg"
         File /r "${files_dir}\ffmpeg\*.*"
@@ -225,7 +231,6 @@ SubSectionEnd
 
 [% block uninstall_files %]
     [[ super() ]]
-    RMDir /r "\$INSTDIR\rtmpdump"
     RMDir /r "\$INSTDIR\ffmpeg"
 [% endblock %]
 
@@ -254,9 +259,6 @@ StrCmp \$0 \${sec_app} "" +2
 
 StrCmp \$0 \${bundled} "" +2
   SendMessage \$R0 \${WM_SETTEXT} 0 "STR:Extra tools used to play some streams"
-
-StrCmp \$0 \${rtmpdump} "" +2
-  SendMessage \$R0 \${WM_SETTEXT} 0 "STR:rtmpdump is used to play RTMP streams"
 
 StrCmp \$0 \${ffmpeg} "" +2
   SendMessage \$R0 \${WM_SETTEXT} 0 "STR:FFMPEG is used to mux separate video and audio streams, for example high quality YouTube videos or DASH streams"
